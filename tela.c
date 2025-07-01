@@ -17,6 +17,8 @@ void desenhaArestaTela(SDL_Renderer *renderer, float *ponto1, float *ponto2){
     p2y = (1-ponto2[1]) * HEIGHT/2;
 
     SDL_RenderDrawLine(renderer, p1x, p1y, p2x, p2y);
+
+    return;
 }
 
 //Desaloca a tela
