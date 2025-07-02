@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 //Ajusta valores de um matriz 4d para uma matriz identidade
@@ -39,7 +40,17 @@ void imprimeMatriz4dDBG(float **matriz){
 }
 
 //Multiplica uma matriz 4d por um ponto
-float *multMatriz4dPonto(float **matriz, float *ponto){}
+float *multMatriz4dPonto(float **matriz, float *ponto) {
+    float *resultado = (float *) malloc(4 * sizeof(float));
+
+    for(int i = 0; i<4; i++){
+        resultado[i] = 0.0;
+        for(int j = 0; j<4; j++){
+            resultado[i] += matriz[i][j] * ponto[j];
+        }
+    }
+    return resultado;
+}
 
 //Multiplica duas matrizes 4d salvando o resultado na segunda matriz
 void multMatriz4d(float **matrizA, float **matrizB) {

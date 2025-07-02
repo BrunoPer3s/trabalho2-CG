@@ -3,6 +3,8 @@
 #include "objeto.h"
 #include "tela.h"
 #include "algebra.h"
+#include "camera.h"
+#include <math.h>
 
 //desenha um objeto na tela
 void desenhaObjetoTela(SDL_Renderer *renderer, float **matriz, tObjeto3d *objeto){
@@ -81,7 +83,23 @@ void atualizaModelMatrix(tObjeto3d *objeto) {
     liberaMatriz4d(T);
 }
 
+void doFlip(float **matrizA, float theta, float valor){
+    matrizA[1][1] = cos(theta);
+    matrizA[1][2] = -sin(theta);
+    matrizA[2][1] = sin(theta);
+    matrizA[2][2] = cos(theta);
+
+    matrizA[0][3] = 1.0f;
+    matrizA[1][3] = valor;
+    matrizA[2][3] = 1.0f;
+}
+
 int main( int argc, char * argv[] ){
+    float **matrizFlip = criaMatrizIdentidade4d();
+    float anguloFlip = 0.0f;
+    int flipLigado = 1;  // começa com doFlip ativo
+    float translFlip[3] = {0.0f, 0.0f, 0.0f};  // controle de translação do objeto 2
+
     if (SDL_Init( SDL_INIT_EVERYTHING) < 0){
         printf("SDL não inicializou! SDL Erro: %s\n", SDL_GetError());
     }
@@ -97,13 +115,22 @@ int main( int argc, char * argv[] ){
 
     SDL_Event windowEvent;
 
-    tObjeto3d *meuObjeto = carregaObjeto("cubo.txt");
+    tObjeto3d *meuObjeto = carregaObjeto("piramide.txt");
     escalaObjeto(meuObjeto, 1.0f, 1.0f, 1.0f); // Faz caber na tela
+
+    //tObjeto3d *objetoFlip = carregaObjeto("cubo.txt");
+    //escalaObjeto(objetoFlip, 1.0f, 1.0f, 1.0f);
+
 
     if (meuObjeto) {
         printf("Objeto carregado com %d vértices e %d arestas\n", meuObjeto->nPontos, meuObjeto->nArestas);
         criaIdentidade4d(meuObjeto->modelMatrix);
     }
+
+    tCamera3d *camera = criaCamera();
+    defineCamera(camera, 0.0f, 0.0f, 10.0f,   // posição da câmera
+                        0.0f, 0.0f, 0.0f,    // centro (olhando para a origem)
+                        0.0f, 1.0f, 0.0f);   // vetor cima
 
     while(1){
         if( SDL_PollEvent(&windowEvent)){
@@ -155,35 +182,109 @@ int main( int argc, char * argv[] ){
                 meuObjeto->transl[0] += 0.1f;
                 atualizaModelMatrix(meuObjeto);
             }
+            if (windowEvent.key.keysym.sym == SDLK_i) {
+                translFlip[1] += 0.1f;  // cima
+            }
+            if (windowEvent.key.keysym.sym == SDLK_k) {
+                translFlip[1] -= 0.1f;  // baixo
+            }
+            if (windowEvent.key.keysym.sym == SDLK_j) {
+                translFlip[0] -= 0.1f;  // esquerda
+            }
+            if (windowEvent.key.keysym.sym == SDLK_l) {
+                translFlip[0] += 0.1f;  // direita
+            }
+
+            // Toggle doFlip com tecla P
+            if (windowEvent.key.keysym.sym == SDLK_p) {
+                flipLigado = !flipLigado;
+            }
 
             // ESCALA
             if (windowEvent.key.keysym.sym == SDLK_EQUALS) {
-                meuObjeto->escala[0] *= 1.1f;
-                meuObjeto->escala[1] *= 1.1f;
-                meuObjeto->escala[2] *= 1.1f;
+                for (int i = 0; i < 3; i++) {
+                    meuObjeto->escala[i] *= 1.1f;
+                    //objetoFlip->escala[i] *= 1.1f;
+                }
                 atualizaModelMatrix(meuObjeto);
+                //atualizaModelMatrix(objetoFlip);
             }
-
             if (windowEvent.key.keysym.sym == SDLK_MINUS) {
-                meuObjeto->escala[0] *= 0.9f;
-                meuObjeto->escala[1] *= 0.9f;
-                meuObjeto->escala[2] *= 0.9f;
+                for (int i = 0; i < 3; i++) {
+                    meuObjeto->escala[i] *= 0.9f;
+                    //objetoFlip->escala[i] *= 0.9f;
+                }
                 atualizaModelMatrix(meuObjeto);
+                //atualizaModelMatrix(objetoFlip);
             }
+            // Numpad controla posição da câmera
+            if (windowEvent.key.keysym.sym == SDLK_KP_4) {  // Esquerda
+                camera->pos[0] -= 0.5f;
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_6) {  // Direita
+                camera->pos[0] += 0.5f;
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_8) {  // Cima
+                camera->pos[1] += 0.5f;
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_2) {  // Baixo
+                camera->pos[1] -= 0.5f;
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_7) {  // Zoom out
+                camera->pos[2] += 0.5f;
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_9) {  // Zoom in
+                camera->pos[2] -= 0.5f;
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_1) {
+                camera->centro[0] -= 0.5f;  // olha mais para a esquerda
+            }
+            if (windowEvent.key.keysym.sym == SDLK_KP_3) {
+                camera->centro[0] += 0.5f;  // olha mais para a direita
+            }
+            // Atualiza viewMatrix após movimentar a câmera
+            defineCamera(camera,
+                         camera->pos[0], camera->pos[1], camera->pos[2],
+                         camera->centro[0], camera->centro[1], camera->centro[2],
+                         camera->cima[0], camera->cima[1], camera->cima[2]);
         }
+
+        anguloFlip += 0.01f;
+        criaIdentidade4d(matrizFlip);  // Zera antes de aplicar
+
+        if (flipLigado) {
+            doFlip(matrizFlip, anguloFlip, 2.0f);
+        }
+        // Aplica translação manual
+        matrizFlip[0][3] += translFlip[0];
+        matrizFlip[1][3] += translFlip[1];
+        matrizFlip[2][3] += translFlip[2];
 
         SDL_SetRenderDrawColor(renderer, 242, 242, 242, 255);
         SDL_RenderClear(renderer);
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
-        desenhaObjetoTela(renderer,meuObjeto->modelMatrix,meuObjeto);
+        float **MV = criaMatrizIdentidade4d();
+        multMatriz4d(meuObjeto->modelMatrix, MV);
+        multMatriz4d(camera->viewMatrix, MV);
+        desenhaObjetoTela(renderer, MV, meuObjeto);
+        liberaMatriz4d(MV);
+
+        float **MV2 = criaMatrizIdentidade4d();
+        //multMatriz4d(objetoFlip->modelMatrix, MV2);  // aplicar escala
+        multMatriz4d(matrizFlip, MV2);
+        //desenhaObjetoTela(renderer, MV2, objetoFlip);
+        liberaMatriz4d(MV2);
 
         SDL_RenderPresent(renderer);
         }
 
     desalocaObjeto(meuObjeto);
     desalocaTela(window);
+    desalocaCamera(camera);
+    //desalocaObjeto(objetoFlip);
+    liberaMatriz4d(matrizFlip);
     SDL_Quit();
 
     return EXIT_SUCCESS;
