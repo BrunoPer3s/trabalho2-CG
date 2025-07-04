@@ -82,7 +82,6 @@ void escalaObjeto(tObjeto3d *objeto, float sx, float sy, float sz) {
 }
 
 //Altera a modelMatrix de um objeto para rotaciona-lo ao redor do eixo X segundo o angulo informado
-
 float **rotacionaObjetoEixoX(float angulo) {
     float rad = angulo * M_PI / 180.0f;
     float c = cosf(rad);

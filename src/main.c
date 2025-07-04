@@ -83,22 +83,17 @@ void atualizaModelMatrix(tObjeto3d *objeto) {
     liberaMatriz4d(T);
 }
 
-void doFlip(float **matrizA, float theta, float valor){
-    matrizA[1][1] = cos(theta);
-    matrizA[1][2] = -sin(theta);
-    matrizA[2][1] = sin(theta);
-    matrizA[2][2] = cos(theta);
-
-    matrizA[0][3] = 1.0f;
-    matrizA[1][3] = valor;
-    matrizA[2][3] = 1.0f;
+void atualizaOrthoMatrix(float **orthoMatrix, float escala) {
+    criaIdentidade4d(orthoMatrix);
+    orthoMatrix[0][0] = 1.0f / escala;
+    orthoMatrix[1][1] = 1.0f / escala;
+    orthoMatrix[2][2] = 1.0f / escala; // pode ser 1.0f se você quiser ignorar Z
 }
 
 int main( int argc, char * argv[] ){
-    float **matrizFlip = criaMatrizIdentidade4d();
-    float anguloFlip = 0.0f;
-    int flipLigado = 1;  // começa com doFlip ativo
-    float translFlip[3] = {0.0f, 0.0f, 0.0f};  // controle de translação do objeto 2
+    float escalaOrtho = 1.0f;  // escala da projeção ortográfica (zoom)
+    float **orthoMatrix = criaMatrizIdentidade4d();
+    atualizaOrthoMatrix(orthoMatrix, escalaOrtho);
 
     if (SDL_Init( SDL_INIT_EVERYTHING) < 0){
         printf("SDL não inicializou! SDL Erro: %s\n", SDL_GetError());
@@ -112,25 +107,26 @@ int main( int argc, char * argv[] ){
     }
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
-
     SDL_Event windowEvent;
 
-    tObjeto3d *meuObjeto = carregaObjeto("piramide.txt");
-    escalaObjeto(meuObjeto, 1.0f, 1.0f, 1.0f); // Faz caber na tela
+    tObjeto3d *objeto1 = carregaObjeto("piramide.txt");
 
-    //tObjeto3d *objetoFlip = carregaObjeto("cubo.txt");
-    //escalaObjeto(objetoFlip, 1.0f, 1.0f, 1.0f);
+    objeto1->escala[0] *= 0.05f;
+    objeto1->escala[1] *= 0.05f;
+    objeto1->escala[2] *= 0.05f;
+    //escalaObjeto(objeto1, 0.25f, 0.25f, 0.25f); // Faz caber na tela
 
-
-    if (meuObjeto) {
-        printf("Objeto carregado com %d vértices e %d arestas\n", meuObjeto->nPontos, meuObjeto->nArestas);
-        criaIdentidade4d(meuObjeto->modelMatrix);
+    if (objeto1) {
+        printf("\nObjeto carregado com %d vértices e %d arestas\n", objeto1->nPontos, objeto1->nArestas);
+        criaIdentidade4d(objeto1->modelMatrix);
     }
 
     tCamera3d *camera = criaCamera();
-    defineCamera(camera, 0.0f, 0.0f, 10.0f,   // posição da câmera
+    defineCamera(camera, 0.0f, 0.0f, 5.0f,   // posição da câmera
                         0.0f, 0.0f, 0.0f,    // centro (olhando para a origem)
-                        0.0f, 1.0f, 0.0f);   // vetor cima
+                        0.0f, 1.0f, 0.0f);
+                        
+                           // vetor cima
 
     while(1){
         if( SDL_PollEvent(&windowEvent)){
@@ -139,85 +135,53 @@ int main( int argc, char * argv[] ){
             }
         }
         if (windowEvent.type == SDL_KEYDOWN) {
+            // Interações com o Objeto
             // ROTAÇÕES
             if (windowEvent.key.keysym.sym == SDLK_q) {
-                meuObjeto->Rx += 0.5f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->Rx += 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_e) {
-                meuObjeto->Rx -= 0.5f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->Rx -= 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_a) {
-                meuObjeto->Ry += 0.5f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->Ry += 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_d) {
-                meuObjeto->Ry -= 0.5f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->Ry -= 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_z) {
-                meuObjeto->Rz += 0.5f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->Rz += 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_c) {
-                meuObjeto->Rz -= 0.5f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->Rz -= 0.5f;
             }
 
             // TRANSLAÇÃO
             if (windowEvent.key.keysym.sym == SDLK_UP) {
-                meuObjeto->transl[1] += 0.1f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->transl[1] += 0.1f;
             }
             if (windowEvent.key.keysym.sym == SDLK_DOWN) {
-                meuObjeto->transl[1] -= 0.1f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->transl[1] -= 0.1f;
             }
             if (windowEvent.key.keysym.sym == SDLK_LEFT) {
-                meuObjeto->transl[0] -= 0.1f;
-                atualizaModelMatrix(meuObjeto);
+                objeto1->transl[0] -= 0.1f;
             }
             if (windowEvent.key.keysym.sym == SDLK_RIGHT) {
-                meuObjeto->transl[0] += 0.1f;
-                atualizaModelMatrix(meuObjeto);
-            }
-            if (windowEvent.key.keysym.sym == SDLK_i) {
-                translFlip[1] += 0.1f;  // cima
-            }
-            if (windowEvent.key.keysym.sym == SDLK_k) {
-                translFlip[1] -= 0.1f;  // baixo
-            }
-            if (windowEvent.key.keysym.sym == SDLK_j) {
-                translFlip[0] -= 0.1f;  // esquerda
-            }
-            if (windowEvent.key.keysym.sym == SDLK_l) {
-                translFlip[0] += 0.1f;  // direita
-            }
-
-            // Toggle doFlip com tecla P
-            if (windowEvent.key.keysym.sym == SDLK_p) {
-                flipLigado = !flipLigado;
+                objeto1->transl[0] += 0.1f;
             }
 
             // ESCALA
             if (windowEvent.key.keysym.sym == SDLK_EQUALS) {
                 for (int i = 0; i < 3; i++) {
-                    meuObjeto->escala[i] *= 1.1f;
-                    //objetoFlip->escala[i] *= 1.1f;
+                    objeto1->escala[i] *= 1.1f;
                 }
-                atualizaModelMatrix(meuObjeto);
-                //atualizaModelMatrix(objetoFlip);
             }
             if (windowEvent.key.keysym.sym == SDLK_MINUS) {
                 for (int i = 0; i < 3; i++) {
-                    meuObjeto->escala[i] *= 0.9f;
-                    //objetoFlip->escala[i] *= 0.9f;
+                    objeto1->escala[i] *= 0.9f;
                 }
-                atualizaModelMatrix(meuObjeto);
-                //atualizaModelMatrix(objetoFlip);
             }
-            // Numpad controla posição da câmera
+            // Interações com a câmera, Numpad
             if (windowEvent.key.keysym.sym == SDLK_KP_4) {  // Esquerda
                 camera->pos[0] -= 0.5f;
             }
@@ -231,16 +195,38 @@ int main( int argc, char * argv[] ){
                 camera->pos[1] -= 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_KP_7) {  // Zoom out
-                camera->pos[2] += 0.5f;
+                camera->centro[1] += 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_KP_9) {  // Zoom in
-                camera->pos[2] -= 0.5f;
+                camera->centro[1] -= 0.5f;
             }
             if (windowEvent.key.keysym.sym == SDLK_KP_1) {
                 camera->centro[0] -= 0.5f;  // olha mais para a esquerda
             }
             if (windowEvent.key.keysym.sym == SDLK_KP_3) {
                 camera->centro[0] += 0.5f;  // olha mais para a direita
+            }
+
+             // Reseta a Câmera
+            if (windowEvent.key.keysym.sym == SDLK_b) {
+                defineCamera(camera, 0.0f, 0.0f, 10.0f,   // posição da câmera
+                        0.0f, 0.0f, 0.0f,    // centro (olhando para a origem)
+                        0.0f, 1.0f, 0.0f);   // vetor cimaobjeto1->Rx += 0.5f;
+            }
+
+            //Interações Câmera Projecão
+            if (windowEvent.key.keysym.sym == SDLK_EQUALS && (windowEvent.key.keysym.mod & KMOD_LCTRL)) {
+            // Zoom in (CTRL + =)
+                escalaOrtho *= 0.9f;
+                if (escalaOrtho < 0.1f) escalaOrtho = 0.1f;
+                atualizaOrthoMatrix(orthoMatrix, escalaOrtho);
+            }
+
+            if (windowEvent.key.keysym.sym == SDLK_MINUS && (windowEvent.key.keysym.mod & KMOD_LCTRL)) {
+                // Zoom out (CTRL + -)
+                escalaOrtho *= 1.1f;
+                if (escalaOrtho > 100.0f) escalaOrtho = 100.0f;
+                atualizaOrthoMatrix(orthoMatrix, escalaOrtho);
             }
             // Atualiza viewMatrix após movimentar a câmera
             defineCamera(camera,
@@ -249,42 +235,26 @@ int main( int argc, char * argv[] ){
                          camera->cima[0], camera->cima[1], camera->cima[2]);
         }
 
-        anguloFlip += 0.01f;
-        criaIdentidade4d(matrizFlip);  // Zera antes de aplicar
-
-        if (flipLigado) {
-            doFlip(matrizFlip, anguloFlip, 2.0f);
-        }
-        // Aplica translação manual
-        matrizFlip[0][3] += translFlip[0];
-        matrizFlip[1][3] += translFlip[1];
-        matrizFlip[2][3] += translFlip[2];
-
         SDL_SetRenderDrawColor(renderer, 242, 242, 242, 255);
         SDL_RenderClear(renderer);
 
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    
+        atualizaModelMatrix(objeto1); // Atualiza a modelMatrix do objeto
 
         float **MV = criaMatrizIdentidade4d();
-        multMatriz4d(meuObjeto->modelMatrix, MV);
+        multMatriz4d(objeto1->modelMatrix, MV);
         multMatriz4d(camera->viewMatrix, MV);
-        desenhaObjetoTela(renderer, MV, meuObjeto);
+        multMatriz4d(orthoMatrix, MV); 
+        desenhaObjetoTela(renderer, MV, objeto1);
         liberaMatriz4d(MV);
-
-        float **MV2 = criaMatrizIdentidade4d();
-        //multMatriz4d(objetoFlip->modelMatrix, MV2);  // aplicar escala
-        multMatriz4d(matrizFlip, MV2);
-        //desenhaObjetoTela(renderer, MV2, objetoFlip);
-        liberaMatriz4d(MV2);
 
         SDL_RenderPresent(renderer);
         }
 
-    desalocaObjeto(meuObjeto);
+    desalocaObjeto(objeto1);
     desalocaTela(window);
     desalocaCamera(camera);
-    //desalocaObjeto(objetoFlip);
-    liberaMatriz4d(matrizFlip);
     SDL_Quit();
 
     return EXIT_SUCCESS;
